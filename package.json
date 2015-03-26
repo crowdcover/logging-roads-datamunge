@@ -1,0 +1,8 @@
+{
+  "name": "overpass2MapBox",
+  "version": "1.0.0",
+  "dependencies": {
+    "query-overpass": "~1.0.0",
+    "mapbox-upload": "~3.1.0"
+  }
+}
