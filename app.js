@@ -23,7 +23,7 @@ var app = {
           areasCount--;
           if(err){
             console.log(err);
-            throw err;
+            return false;
           }
           console.log('queried overpass, queries left: ' +  areasCount);
 
