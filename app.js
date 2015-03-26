@@ -1,72 +1,98 @@
 var fs = require('fs');
 var overpass = require('query-overpass');
 var upload = require('mapbox-upload');
+var turf = require('turf');
 var EventEmitter = require('events').EventEmitter;
 
-var bbox = [2,22,2.8,23.1],
-    overpass_output_file = 'overpass_result.geojson',
-    geojson = {};
-
-
-var overpassBboxQuery = function(bbox, outfile, callback){
-  var query = '[out:json][timeout:25];' +
-              '(' +
-                'way["highway"="track"]["access"="forestry"](' + bbox.join() + ');' +
-                'way["highway"="track"]["access"="agriculture"](' + bbox.join() + ');' +
-              ');' +
-              'out body;' +
-              '>;' +
-              'out skel qt;',
-
-  overpass(query, function(err, data){
-    if(err) throw err;
-
-    console.log('successful query');
-    var geojson = '';
-
-    try {
-      geojson = JSON.stringify(data) + '\n';
-    } catch (err) {
-      throw err;
-    }
-
-    fs.writeFile(outfile, geojson, function(err){
+var app = {
+  run: function(){
+    fs.readFile('drc_tm_area_small.geojson', 'utf-8', function(err, data){
       if(err) throw err;
 
-      callback(geojson);
+      console.log('successfully read tm area geojson');
+      var geojson = JSON.parse(data),
+          areas = geojson['features'],
+          areasCount = areas.length;
+
+
+      for(var i = 0; i < areas.length; i++){
+        var bbox = app.getBbox(areas[i]),
+            allRoads = null;
+
+        app.overpassBboxQuery(bbox, function(err, geojson){
+          areasCount--;
+          if(err){
+            console.log(err);
+            throw err;
+          }
+          console.log('queried overpass, queries left: ' +  areasCount);
+
+          if(allRoads ===  null){
+            allRoads = geojson;
+          }else{
+            allRoads['features'].concat(geojson['features']);
+          }
+
+          if(areasCount === 0){
+            var outFile = 'output/logging_roads.geojson';
+
+            console.log('writing logging roads')
+
+            try {
+              allRoads = JSON.stringify(allRoads) + '\n';
+            } catch (err) {
+              throw err;
+            }
+
+            fs.writeFile(outFile, allRoads, function(err){
+              if(err) throw err;
+
+              console.log('saved logging roads to: ' + outFile);
+
+              // app.file2MapBox(outFile)
+
+            });
+          }
+        });
+
+      }
     });
-  })
+  },
 
-  return outfile;
-};
+  getBbox: function(geojson){
+    // turf outputs bbox as: [w,s,e,n]
+    // overpass requires bbox as: [s,w,n,e]
+    // getBbox converts turf bbox to overpass bbox
+    var turfBbox = turf.extent(geojson);
+    return [turfBbox[1], turfBbox[0], turfBbox[3], turfBbox[2]];
+  },
 
-var file2MapBox = function(file){
-  return progress = upload({
-      file:  __dirname + '/' + file,
-      account: 'crowdcover', // Mapbox user account.
-      accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
-      mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
-  });
-};
+  overpassBboxQuery: function(bbox, callback){
+    // bbox should be array: [s,w,n,e]
+    var query = '[out:json][timeout:25];' +
+                '(' +
+                  'way["highway"="track"]["access"="forestry"](' + bbox.join() + ');' +
+                  'way["highway"="track"]["access"="agriculture"](' + bbox.join() + ');' +
+                ');' +
+                'out body;' +
+                '>;' +
+                'out skel qt;';
 
+    overpass(query, callback);
+  },
 
-
-////////////////////////////////////////////////
-////////////////////////////////////////////////
-////////////////////////////////////////////////
-fs.readFile('drc_tm_area.geojson', 'utf-8', function(err, data){
-  if(err) throw err;
-
-  console.log('successfully read tm area geojson');
-  var geojson = JSON.parse(data),
-      features = geojson['features'];
-
-  for(var i = 0; i < features.length; i++){
-    // app.getBbox(features[i])
-    // file = app.overpassBboxQuery
-    // app.file2MapBox(file)
+  file2MapBox: function(file){
+    return progress = upload({
+        file:  __dirname + '/' + file,
+        account: 'crowdcover', // Mapbox user account.
+        accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
+        mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
+    });
   }
-});
+
+};
+
+app.run();
 
 
 
