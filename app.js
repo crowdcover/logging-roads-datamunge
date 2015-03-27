@@ -6,56 +6,41 @@ var EventEmitter = require('events').EventEmitter;
 
 var app = {
   run: function(){
-    fs.readFile('drc_tm_area_small.geojson', 'utf-8', function(err, data){
+    fs.readFile('drc_cog_car_tm-area.geojson', 'utf-8', function(err, data){
       if(err) throw err;
+      console.log('loaded tm areas. querying overpass');
 
-      console.log('successfully read tm area geojson');
       var geojson = JSON.parse(data),
-          areas = geojson['features'],
-          areasCount = areas.length;
+          bbox = app.getBbox(geojson),
+          outFile = 'output/logging_roads.geojson';
 
+      app.overpassBboxQuery(bbox, function(err, geojson){
+        if(err){
+          console.log(err);
+          return;
+        }
 
-      for(var i = 0; i < areas.length; i++){
-        var bbox = app.getBbox(areas[i]),
-            allRoads = null;
+        try {
+          geojson = JSON.stringify(geojson) + '\n';
+        } catch (err) {
+          console.log(err);
+          return;
+        }
 
-        app.overpassBboxQuery(bbox, function(err, geojson){
-          areasCount--;
-          if(err){
-            console.log(err);
-            throw err;
-          }
-          console.log('queried overpass, queries left: ' +  areasCount);
+        console.log('successfully ran overpass query.  writing file')
 
-          if(allRoads ===  null){
-            allRoads = geojson;
-          }else{
-            allRoads['features'].concat(geojson['features']);
-          }
+        fs.writeFile(outFile, geojson, function(err){
+          if(err) throw err;
+          console.log('saved logging roads to: ' + outFile);
+          var mapbox = app.file2MapBox(outFile);
 
-          if(areasCount === 0){
-            var outFile = 'output/logging_roads.geojson';
-
-            console.log('writing logging roads')
-
-            try {
-              allRoads = JSON.stringify(allRoads) + '\n';
-            } catch (err) {
-              throw err;
-            }
-
-            fs.writeFile(outFile, allRoads, function(err){
-              if(err) throw err;
-
-              console.log('saved logging roads to: ' + outFile);
-
-              // app.file2MapBox(outFile)
-
-            });
-          }
+          mapbox.on('finished', function(){
+            console.log('uploaded file to mapbox');
+          });
         });
 
-      }
+
+      });
     });
   },
 
