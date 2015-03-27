@@ -3,10 +3,14 @@ var overpass = require('query-overpass');
 var upload = require('mapbox-upload');
 var turf = require('turf');
 var EventEmitter = require('events').EventEmitter;
+var fName = process.argv.slice(2);
 
 var app = {
   run: function(){
-    fs.readFile('drc_cog_car_tm-area.geojson', 'utf-8', function(err, data){
+    if(fName.length > 1) throw 'please only specify one file';
+    fName = fName[0];
+
+    fs.readFile(fName, 'utf-8', function(err, data){
       if(err) throw err;
       console.log('loaded tm areas. querying overpass');
 
@@ -14,6 +18,7 @@ var app = {
           bbox = app.getBbox(geojson),
           outFile = 'output/logging_roads.geojson';
 
+      //throw 'TEST DONE!'
       app.overpassBboxQuery(bbox, function(err, geojson){
         if(err){
           console.log(err);
