@@ -2,8 +2,18 @@ var fs = require('fs');
 var overpass = require('query-overpass');
 var upload = require('mapbox-upload');
 var turf = require('turf');
-var EventEmitter = require('events').EventEmitter;
+
 var fName = process.argv.slice(2);
+var overpassQL = '[out:json][timeout:25];' +
+            '(' +
+              'way["highway"="track"]["access"="forestry"]( {{bbox}} );' +
+              'way["highway"="track"]["access"="agriculture"]( {{bbox}} );' +
+              'way["abandoned:highway"="track"]["access"="forestry"]( {{bbox}} );' +
+              'way["abandoned:highway"="track"]["access"="agricultural"]( {{bbox}} );' +
+            ');' +
+            'out body;' +
+            '>;' +
+            'out skel qt;';
 
 var app = {
   run: function(){
@@ -16,14 +26,11 @@ var app = {
 
       var geojson = JSON.parse(data),
           bbox = app.getBbox(geojson),
-          outFile = 'output/logging_roads.geojson';
+          outFile = 'output/logging_roads.geojson',
+          query = overpassQL.replace(/{{bbox}}/g, bbox);
 
-      //throw 'TEST DONE!'
-      app.overpassBboxQuery(bbox, function(err, geojson){
-        if(err){
-          console.log(err);
-          return;
-        }
+      overpass(query, function(err, geojson){
+        if(err) throw err.message;
 
         try {
           geojson = JSON.stringify(geojson) + '\n';
@@ -33,6 +40,7 @@ var app = {
         }
 
         console.log('successfully ran overpass query.  writing file')
+        // throw 'BREAKING EARLY';
 
         fs.writeFile(outFile, geojson, function(err){
           if(err) throw err;
@@ -55,20 +63,6 @@ var app = {
     // getBbox converts turf bbox to overpass bbox
     var turfBbox = turf.extent(geojson);
     return [turfBbox[1], turfBbox[0], turfBbox[3], turfBbox[2]];
-  },
-
-  overpassBboxQuery: function(bbox, callback){
-    // bbox should be array: [s,w,n,e]
-    var query = '[out:json][timeout:25];' +
-                '(' +
-                  'way["highway"="track"]["access"="forestry"](' + bbox.join() + ');' +
-                  'way["highway"="track"]["access"="agriculture"](' + bbox.join() + ');' +
-                ');' +
-                'out body;' +
-                '>;' +
-                'out skel qt;';
-
-    overpass(query, callback);
   },
 
   file2MapBox: function(file){
