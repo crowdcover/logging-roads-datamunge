@@ -1,13 +1,12 @@
 Some simple node scripts to collect and analyze HOT Tasking Manager and OSM Overpass data.  Written for the [Logging Roads project](https://github.com/crowdcover/logging-roads).
 
-### overpass2mapbox.js
-Query overpass for all logging roads within the bounding box of the specified geojson file.  This will overwrite the existing mapbox project, effectively updating the map layer, providing you run it against a a geojson that contains all current tm projects.
+### query-overpass.js
+Send a query request to OSM Overpass and save the returned geojson to a file.
 
 **e.g.**
 ```
-node overpass2mapbox.js drc_cog_car_tm-area.geojson
+node query-overpass.js
 ```
-Uploads all logging roads that are within the bbox of the project geojsons stored in the `drc_cog_car_tm-area.geojson` file.
 
 
 ### get_tm_grids.js
@@ -18,6 +17,7 @@ Request project grids from the tasking manager for all specified projects.  Curr
 node get_tm_grids.js 920 956 957
 ```
 
+
 ### road_length.js
 Calculate the total length of a .geojson file containing a GeoJSON FeatureCollection of LineString features.
 
@@ -26,3 +26,12 @@ Calculate the total length of a .geojson file containing a GeoJSON FeatureCollec
 node road_length.js
 ```
 
+
+### overpass2mapbox.js
+All in one script combining query-overpass.js and upload2mapbox.js.  Query overpass for all logging roads within the bounding box of the specified geojson file.  This will overwrite the existing Mapbox project, effectively updating the map layer, providing you run it against a a geojson that contains all current tm projects.
+
+**e.g.**
+```
+node overpass2mapbox.js drc_cog_car_tm-area.geojson
+```
+Uploads all logging roads that are within the bbox of the project geojsons stored in the `drc_cog_car_tm-area.geojson` file.
