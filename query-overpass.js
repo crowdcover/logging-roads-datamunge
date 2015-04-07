@@ -20,45 +20,72 @@ var inFiles = {
   cog: 'data/cog_project_areas.geojson'
 };
 
+var merge = 'data/drc_car_cog_logging_roads.geojson';
+
 // queries to overpass can't be run in parallel, so use async.eachSeries()
-async.eachSeries(Object.keys(inFiles), queryOverpass, allDone);
+async.eachSeries(Object.keys(inFiles), queryOverpass, function(err){
+  if(err) console.log(err);
+  
+  var files = Object.keys(inFiles).map(function(key){
+    return inFiles[key];
+  });
 
-function queryOverpass(key, callback){
-  fs.readFile(inFiles[key], 'utf-8', function(err, data){
-    if(err) callback(err);
-    console.log('loaded project areas. querying overpass');
+  console.log('SUCCESS: queried overpass for files ' + files.join(', '));
 
-    var geojson = JSON.parse(data),
-        bbox = getBbox(geojson),
-        outFile = 'data/' + key + '_logging_roads.geojson',
-        query = overpassQL.replace(/{{bbox}}/g, bbox);
+  if(merge){
+    console.log('merging files');
 
-    overpass(query, function(err, geojson){
-      if(err) callback(err);
+    var mergeFiles = Object.keys(inFiles).map(function(key){
+      return 'data/' + key + '_logging_roads.geojson';
+    })
+
+    mergeGeoJSON(mergeFiles, function(data){
 
       try {
-        geojson = JSON.stringify(geojson) + '\n';
+        data = JSON.stringify(data) + '\n';
       } catch (err) {
-        callback(err);
+        console.log(err);
+        return;
       }
 
-      console.log('successfully ran overpass query.  writing file ' + inFiles[key])
-
-      fs.writeFile(outFile, geojson, function(err){
-        if(err) callback(err);
-        console.log('successfully wrote file ' + inFiles[key]);
-        callback();
+      fs.writeFile(merge, data, function(err){
+        if(err) throw err;
+        console.log('merged files to ' + merge);
       });
     });
-  });
-}
+  }
 
-function allDone(err){
-  if(err) console.log(err);
-  var fileNames = Object.keys(inFiles).reduce(function(fileList, key){
-    return fileList += inFiles[key] + ', ';
-  }, '');
-  console.log('SUCCESS: queried overpass for files ' + fileNames)
+});
+
+function queryOverpass(key, callback){
+  callback();
+  // fs.readFile(inFiles[key], 'utf-8', function(err, data){
+  //   if(err) callback(err);
+  //   console.log('loaded project areas. querying overpass');
+
+  //   var geojson = JSON.parse(data),
+  //       bbox = getBbox(geojson),
+  //       outFile = 'data/' + key + '_logging_roads.geojson',
+  //       query = overpassQL.replace(/{{bbox}}/g, bbox);
+
+  //   overpass(query, function(err, geojson){
+  //     if(err) callback(err);
+
+  //     try {
+  //       geojson = JSON.stringify(geojson) + '\n';
+  //     } catch (err) {
+  //       callback(err);
+  //     }
+
+  //     console.log('successfully ran overpass query.  writing file ' + inFiles[key])
+
+  //     fs.writeFile(outFile, geojson, function(err){
+  //       if(err) callback(err);
+  //       console.log('successfully wrote file ' + inFiles[key]);
+  //       callback();
+  //     });
+  //   });
+  // });
 }
 
 function getBbox(geojson){
@@ -67,4 +94,40 @@ function getBbox(geojson){
   // getBbox converts turf bbox to overpass bbox
   var turfBbox = turf.extent(geojson);
   return [turfBbox[1], turfBbox[0], turfBbox[3], turfBbox[2]];
+}
+
+function mergeGeoJSON(files, callback){
+  // merge geojson files, skipping duplicate features
+  var merged = {
+    "type": "FeatureCollection",
+    "features": []
+  };
+  var ids = {};
+ 
+  async.eachSeries(files, function(file, callback){
+
+    fs.readFile(file, 'utf-8', function(err, data){
+      if(err) {
+        console.log(err);
+        return callback(err);
+      }
+      data = JSON.parse(data);
+
+      data['features'].forEach(function(feature){
+        var id = feature['properties']['id'];
+
+        if(!(id in ids)){
+          ids[id] = true;
+          merged['features'].push(feature);
+        }
+
+      });
+
+      callback();
+    });    
+
+  }, function(err){
+    callback(merged, ids);
+  });
+
 }

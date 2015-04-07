@@ -2,8 +2,12 @@ var fs = require('fs');
 var turf = require('turf');
 var async = require('async');
 var inFiles = {
-  all: 'output/logging_roads.geojson'
+  all: 'data/drc_car_cog_logging_roads.geojson',
+  drc: 'data/drc_logging_roads.geojson',
+  car: 'data/car_logging_roads.geojson',
+  cog: 'data/cog_logging_roads.geojson'
 };
+
 var outFile = 'output/roads_distance.json';
 
 var results = {};
