@@ -21,6 +21,8 @@ module.exports = function(inFiles, overpassQL, callback){
 
     fs.readFile(file, 'utf-8', function(err, data){
       if(err) callback(err);
+      if(data === '') callback( new Error('Error: ' + file + 'is empty'));
+
       console.log('loading file: ' + file);
 
       output[key] = JSON.parse(data);
