@@ -4,15 +4,18 @@ var turf = require('turf');
 var async = require('async');
 
 /////////////////////////////
-// given an array of geojson objects, query overpass for the bbox of each
-// return an array of all results
+// given an object literal of geojson objects, query overpass for the bbox of each
+// object format -- key: project_id, value: project_file
+// return an object of key-value pairs -- key: project_id, value: roads.geojson
 /////////////////////////////
 module.exports = function(inFiles, overpassQL, callback){
-  var output = [];
+  var output = {};
 
-  async.eachSeries(inFiles, queryOverpass, allDone);
+  async.eachSeries(Object.keys(inFiles), queryOverpass, allDone);
 
-  function queryOverpass(file, callback){
+  function queryOverpass(key, callback){
+    var file = inFiles[key];
+
     fs.readFile(file, 'utf-8', function(err, data){
       if(err) callback(err);
       console.log('querying overpass for file: ' + file);
@@ -25,7 +28,7 @@ module.exports = function(inFiles, overpassQL, callback){
       overpass(query, function(err, geojson){
         if(err) callback(err);
 
-        output.push(geojson)
+        output[key] = geojson;
         callback();
 
       });

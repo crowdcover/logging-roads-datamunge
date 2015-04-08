@@ -1,4 +1,4 @@
-module.exports = function mergeGeoJSON(files, callback){
+module.exports = function mergeGeoJSON(geojsons, callback){
   // merge geojson files, skipping duplicate features
   var merged = {
     "type": "FeatureCollection",
@@ -6,30 +6,20 @@ module.exports = function mergeGeoJSON(files, callback){
   };
   var ids = {};
  
-  async.eachSeries(files, function(file, callback){
+  Object.keys(geojsons).forEach(function(key){
+    var geojson = geojsons[key];
+    
+    geojson['features'].forEach(function(feature){
+      var id = feature['properties']['id'];
 
-    fs.readFile(file, 'utf-8', function(err, data){
-      if(err) {
-        console.log(err);
-        return callback(err);
+      if(!(id in ids)){
+        ids[id] = true;
+        merged['features'].push(feature);
       }
-      data = JSON.parse(data);
 
-      data['features'].forEach(function(feature){
-        var id = feature['properties']['id'];
-
-        if(!(id in ids)){
-          ids[id] = true;
-          merged['features'].push(feature);
-        }
-
-      });
-
-      callback();
-    });    
-
-  }, function(err){
-    callback(merged, ids);
+    });
   });
 
-}
+  return merged;
+
+};
