@@ -1,9 +1,9 @@
 var fs = require('fs');
 var async = require('async');
-var mergeGeoJSON = require('./merge-geojson');
-var queryOverpass = require('./bbox-query-overpass');
-// var queryOverpass = require('./read-files.js');  // for test purposes
-var calcLength = require('./calc-line-length');
+var mergeGeoJSON = require('./custom_modules/merge-geojson');
+// var queryOverpass = require('./custom_modules/bbox-query-overpass');
+var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
+var calcLength = require('./custom_modules/calc-line-length');
 
 var overpassQL = '[out:json][timeout:25];' +
             '(' +
