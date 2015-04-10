@@ -1,8 +1,9 @@
 var fs = require('fs');
 var async = require('async');
+var upload = require('mapbox-upload');
 var mergeGeoJSON = require('./custom_modules/merge-geojson');
-// var queryOverpass = require('./custom_modules/bbox-query-overpass');
-var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
+var queryOverpass = require('./custom_modules/bbox-query-overpass');
+// var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
 var calcLength = require('./custom_modules/calc-line-length');
 
 var overpassQL = '[out:json][timeout:25];' +
@@ -56,10 +57,29 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
   // 4. merge geojsons and write to file
   var allRoads = mergeGeoJSON(geojsonObj);
+  var allRoadsFileName = 'data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
 
-  writeJSON('data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson', allRoads);
+  writeJSON(allRoadsFileName, allRoads, function(err){
+    if (err) throw err;
 
-  // 5. upload to MapBox
+    // 5. upload to MapBox
+    var progress = upload({
+      file:  __dirname + '/' + allRoadsFileName,
+      account: 'crowdcover', // Mapbox user account.
+      accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
+      mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
+    });
+
+    progress.on('error', function(err){
+        if (err) throw err;
+    });
+
+    progress.once('finished', function(){
+      console.log('Uploaded to mapbox complete for file: ' + allRoadsFileName);
+    });
+
+  });
+
 
 });
 
