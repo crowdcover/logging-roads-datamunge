@@ -2,6 +2,8 @@ var fs = require('fs');
 var http = require('http');
 var tmProjects = process.argv.slice(2);
 
+if(tmProjects.length === 0) throw 'please specify at least one tm project number';
+
 tmProjects.forEach(function(project){
   console.log('requesting tm grid for project: ' + project);
   
