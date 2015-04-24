@@ -20,7 +20,8 @@ var overpassQL = '[out:json][timeout:25];' +
 var inFiles = {
   drc: 'data/drc_project_areas.geojson',
   car: 'data/car_project_areas.geojson',
-  cog: 'data/cog_project_areas.geojson'
+  cog: 'data/cog_project_areas.geojson',
+  cmr: 'data/cmr_project_areas.geojson'
 };
 
 var roadLengthFile = 'data/km_roads_by_project.json';
