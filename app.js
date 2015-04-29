@@ -18,13 +18,13 @@ var overpassQL = '[out:json][timeout:25];' +
             'out skel qt;';
 
 var inFiles = {
-  drc: 'data/drc_project_areas.geojson',
-  car: 'data/car_project_areas.geojson',
-  cog: 'data/cog_project_areas.geojson',
-  cmr: 'data/cmr_project_areas.geojson'
+  drc: __dirname + '/data/drc_project_areas.geojson',
+  car: __dirname + '/data/car_project_areas.geojson',
+  cog: __dirname + '/data/cog_project_areas.geojson',
+  cmr: __dirname + '/data/cmr_project_areas.geojson'
 };
 
-var roadLengthFile = 'data/km_roads_by_project.json';
+var roadLengthFile = __dirname + '/data/km_roads_by_project.json';
 
 queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   if(err) throw err;
@@ -44,7 +44,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     roadLengths[key] = calcLength(geojson);
 
     // 2. write to file
-    writeJSON('data/' + key + '_logging_roads.geojson', geojson);
+    writeJSON(__dirname + '/data/' + key + '_logging_roads.geojson', geojson);
 
     callback();
 
@@ -58,14 +58,14 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
   // 4. merge geojsons and write to file
   var allRoads = mergeGeoJSON(geojsonObj);
-  var allRoadsFileName = 'data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
+  var allRoadsFileName = __dirname + '/data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
 
   writeJSON(allRoadsFileName, allRoads, function(err){
     if (err) throw err;
 
     // 5. upload to MapBox
     var progress = upload({
-      file:  __dirname + '/' + allRoadsFileName,
+      file: allRoadsFileName,
       account: 'crowdcover', // Mapbox user account.
       accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
       mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
