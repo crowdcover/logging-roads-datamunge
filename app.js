@@ -58,14 +58,15 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
   // 4. merge geojsons and write to file
   var allRoads = mergeGeoJSON(geojsonObj);
-  var allRoadsFileName = 'data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
+  // var allRoadsFileName = 'data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
+  var allRoadsFileName = __dirname + '/data/all_roads.geojson';
 
   writeJSON(allRoadsFileName, allRoads, function(err){
     if (err) throw err;
 
     // 5. upload to MapBox
     var progress = upload({
-      file:  __dirname + '/' + allRoadsFileName,
+      file: allRoadsFileName,
       account: 'crowdcover', // Mapbox user account.
       accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
       mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
