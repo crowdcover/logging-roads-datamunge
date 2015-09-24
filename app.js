@@ -33,6 +33,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
   // given an array of project logging road geojson feature collections
   // 1. calculate their length
+  //1. b) convert OSM tags to geoJSON properties
   // 2. write each to file
   // 3. write calculated lengths to file
   // 4. merge and write that to a file
@@ -42,6 +43,16 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     // 1. calculate length
     var geojson = geojsonObj[key];
     roadLengths[key] = calcLength(geojson);
+    
+    //1. b) convert OSM tags to geoJSON properties
+    geojson.features.forEach(function(feature){
+              var tags = feature.properties.tags;
+              Object.keys(tags).map(function (key) {
+                   var val = tags[key];
+                   feature.properties[key] = val;
+                 });
+               delete feature.properties.tags;
+            });
 
     // 2. write to file
     writeJSON(__dirname + '/data/' + key + '_logging_roads.geojson', geojson);
@@ -69,7 +80,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
       file: allRoadsFileName,
       account: 'crowdcover', // Mapbox user account.
       accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
-      mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
+      mapid: 'crowdcover.logging_roads2' // The identifier of the map to create or update.
     });
 
     progress.on('error', function(err){
