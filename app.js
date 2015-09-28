@@ -3,8 +3,9 @@ var async = require('async');
 var upload = require('mapbox-upload');
 var mergeGeoJSON = require('./custom_modules/merge-geojson');
 var queryOverpass = require('./custom_modules/bbox-query-overpass');
-// var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
+//var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
 var calcLength = require('./custom_modules/calc-line-length');
+var knex = require('./connection');
 
 var overpassQL = '[out:json][timeout:25];' +
             '(' +
@@ -30,6 +31,9 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   if(err) throw err;
 
   var roadLengths = {};
+  
+  var roadCount = 0;
+  var roadWithTagCount = 0;
 
   // given an array of project logging road geojson feature collections
   // 1. calculate their length
@@ -44,6 +48,8 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     var geojson = geojsonObj[key];
     roadLengths[key] = calcLength(geojson);
     
+    roadCount += geojson.features.length;
+    
     //1. b) convert OSM tags to geoJSON properties
     geojson.features.forEach(function(feature){
               var tags = feature.properties.tags;
@@ -51,7 +57,15 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
                    var val = tags[key];
                    feature.properties[key] = val;
                  });
-               delete feature.properties.tags;
+                 if(feature.properties.start_date 
+                 && feature.properties.start_date != ''
+                 && feature.properties.start_date != 'unknown'){
+                   roadWithTagCount++;
+                 }else{
+                   //assign a value so it is easier to style in the map
+                   feature.properties.start_date = 'unknown';
+                 }
+               //delete feature.properties.tags;
             });
 
     // 2. write to file
@@ -71,6 +85,22 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   var allRoads = mergeGeoJSON(geojsonObj);
   // var allRoadsFileName = __dirname + '/data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
   var allRoadsFileName = __dirname + '/data/all_roads.geojson';
+  
+  //save counts to database
+  knex('logging.stats')
+  .where({key: 'totalRoads'})
+  .update({ value: roadCount})
+  .catch(function (err) {
+        console.log(err);
+  });
+  
+  knex('logging.stats')
+  .where({key: 'taggedRoads'})
+  .update({ value: roadWithTagCount})
+  .catch(function (err) {
+        console.log(err);
+  });
+  
 
   writeJSON(allRoadsFileName, allRoads, function(err){
     if (err) throw err;
@@ -80,7 +110,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
       file: allRoadsFileName,
       account: 'crowdcover', // Mapbox user account.
       accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
-      mapid: 'crowdcover.logging_roads2' // The identifier of the map to create or update.
+      mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
     });
 
     progress.on('error', function(err){
@@ -89,6 +119,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
     progress.once('finished', function(){
       console.log('Uploaded to mapbox complete for file: ' + allRoadsFileName);
+      process.exit();
     });
 
   });
