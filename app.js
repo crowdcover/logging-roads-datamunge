@@ -110,7 +110,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
       file: allRoadsFileName,
       account: 'crowdcover', // Mapbox user account.
       accesstoken: 'sk.eyJ1IjoiY3Jvd2Rjb3ZlciIsImEiOiJsemhCUzljIn0.uIgOj_SkXD99320QU5ejuQ', // A valid Mapbox API secret token with the uploads:write scope enabled.
-      mapid: 'crowdcover.logging_roads' // The identifier of the map to create or update.
+      mapid: 'crowdcover.e06eb11a' // The identifier of the map to create or update.
     });
 
     progress.on('error', function(err){
