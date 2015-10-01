@@ -1,0 +1,6 @@
+{
+  "/loggingroads": {
+    "source": "tmsource://./",
+    "cors": true
+  }
+}

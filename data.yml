@@ -1,0 +1,25 @@
+_prefs: 
+  disabled: []
+  inspector: false
+  saveCenter: true
+attribution: OpenStreetMap
+center: 
+  - 11.9751
+  - 1.472
+  - 5
+description: ''
+Layer: 
+  - id: original
+    Datasource: 
+      file: data/all_roads.geojson
+      layer: all_roads
+      type: geojson
+    description: OSM logging road data from loggingroads.org
+    fields: 
+      start_date: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs
+maxzoom: 22
+minzoom: 0
+name: loggingroads
