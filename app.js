@@ -31,7 +31,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   if(err) throw err;
 
   var roadLengths = {};
-  
+
   var roadCount = 0;
   var roadWithTagCount = 0;
 
@@ -47,9 +47,9 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     // 1. calculate length
     var geojson = geojsonObj[key];
     roadLengths[key] = calcLength(geojson);
-    
+
     roadCount += geojson.features.length;
-    
+
     //1. b) convert OSM tags to geoJSON properties
     geojson.features.forEach(function(feature){
               var tags = feature.properties.tags;
@@ -57,7 +57,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
                    var val = tags[key];
                    feature.properties[key] = val;
                  });
-                 if(feature.properties.start_date 
+                 if(feature.properties.start_date
                  && feature.properties.start_date != ''
                  && feature.properties.start_date != 'unknown'){
                    roadWithTagCount++;
@@ -65,6 +65,13 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
                    //assign a value so it is easier to style in the map
                    feature.properties.start_date = 'unknown';
                  }
+                 //remove bad tags
+                 if(feature.properties.start_date
+                 && feature.properties.start_date.startsWith('before')
+                 && feature.properties.start_date != 'before 2000'){
+                   feature.properties.start_date = 'unknown';
+                 }
+
                //delete feature.properties.tags;
             });
 
@@ -85,7 +92,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   var allRoads = mergeGeoJSON(geojsonObj);
   // var allRoadsFileName = __dirname + '/data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
   var allRoadsFileName = __dirname + '/data/all_roads.geojson';
-  
+
   //save counts to database
   knex('logging.stats')
   .where({key: 'totalRoads'})
@@ -93,18 +100,19 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   .catch(function (err) {
         console.log(err);
   });
-  
+
   knex('logging.stats')
   .where({key: 'taggedRoads'})
   .update({ value: roadWithTagCount})
   .catch(function (err) {
         console.log(err);
   });
-  
+
 
   writeJSON(allRoadsFileName, allRoads, function(err){
     if (err) throw err;
 
+/*
     // 5. upload to MapBox
     var progress = upload({
       file: allRoadsFileName,
@@ -123,7 +131,36 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     });
 
   });
+  */
 
+  //remove unknown
+  var allRoadsWithTags = {
+    "type":"FeatureCollection",
+    "features":[]
+  };
+
+  allRoads.features.forEach(function(feature){
+    if(feature.properties.start_date
+       && feature.properties.start_date == 'before 2000'){
+         feature.properties.start_date = '2000';
+     }
+
+     if(feature.properties.start_date
+        && feature.properties.start_date == 'after 2013'){
+          feature.properties.start_date = '2014';
+      }
+
+     if(feature.properties.start_date
+        && feature.properties.start_date != 'unknown'){
+          allRoadsWithTags.features.push(feature);
+      }
+
+   });
+
+   var allRoadsWithTagFileName = __dirname + '/data/all_roads_withdata.geojson';
+   writeJSON(allRoadsWithTagFileName, allRoadsWithTags)
+
+});
 
 });
 
@@ -141,5 +178,3 @@ function writeJSON(outFile, json, callback){
     if(callback) callback();
   });
 }
-
-
