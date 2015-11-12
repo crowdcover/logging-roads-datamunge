@@ -11,7 +11,8 @@ module.exports = function(inFiles, overpassQL, callback){
   var inFiles = {
     drc: 'data/drc_logging_roads.geojson',
     car: 'data/car_logging_roads.geojson',
-    cog: 'data/cog_logging_roads.geojson'
+    cog: 'data/cog_logging_roads.geojson',
+    cmr: 'data/cmr_logging_roads.geojson'
   };
 
   async.eachSeries(Object.keys(inFiles), queryOverpass, allDone);
