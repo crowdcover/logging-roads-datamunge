@@ -11,7 +11,8 @@ module.exports = function mergeGeoJSON(geojsons, callback){
     
     geojson['features'].forEach(function(feature){
       var id = feature['properties']['id'];
-
+      //delete tags from merged file
+      delete feature.properties.tags; 
       if(!(id in ids)){
         ids[id] = true;
         merged['features'].push(feature);
