@@ -1,11 +1,36 @@
 var fs = require('fs');
 var async = require('async');
 var upload = require('mapbox-upload');
+var shpwrite = require('shp-write');
 var mergeGeoJSON = require('./custom_modules/merge-geojson');
 var queryOverpass = require('./custom_modules/bbox-query-overpass');
 //var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
 var calcLength = require('./custom_modules/calc-line-length');
-var knex = require('./connection');
+
+
+
+//TODO: covert these to command line args
+var runAsCronJob = true;
+var saveStatsToDB = true;
+var pushToMapBox = false;
+
+//var cronTime = '00 * * * * *'; //once a minute - for testing only
+ var cronTime = '00 00 00 * * *'; //every night at midnight
+
+
+//polyfill startsWith
+if (!String.prototype.startsWith) {
+  String.prototype.startsWith = function(searchString, position) {
+    position = position || 0;
+    return this.indexOf(searchString, position) === position;
+  };
+}
+
+function run(dataUpdatedCallback){
+
+if(saveStatsToDB){
+  var knex = require('./connection');
+}
 
 var overpassQL = '[out:json][timeout:25];' +
             '(' +
@@ -55,6 +80,9 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
               var tags = feature.properties.tags;
               Object.keys(tags).map(function (key) {
                    var val = tags[key];
+                   if(typeof val === 'object'){
+                     val = JSON.stringify(val);
+                    }
                    feature.properties[key] = val;
                  });
                  if(feature.properties.start_date
@@ -91,28 +119,30 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   // 4. merge geojsons and write to file
   var allRoads = mergeGeoJSON(geojsonObj);
   // var allRoadsFileName = __dirname + '/data/' + Object.keys(geojsonObj).join('_') + '_logging_roads.geojson';
-  var allRoadsFileName = __dirname + '/data/all_roads.geojson';
+  var allRoadsFileName = __dirname + '/output/roads.geojson';
 
-  //save counts to database
-  knex('logging.stats')
-  .where({key: 'totalRoads'})
-  .update({ value: roadCount})
-  .catch(function (err) {
-        console.log(err);
-  });
-
-  knex('logging.stats')
-  .where({key: 'taggedRoads'})
-  .update({ value: roadWithTagCount})
-  .catch(function (err) {
-        console.log(err);
-  });
-
+  if(saveStatsToDB){
+    //save counts to database
+    knex('logging.stats')
+    .where({key: 'totalRoads'})
+    .update({ value: roadCount})
+    .catch(function (err) {
+          console.log(err);
+    });
+  
+    knex('logging.stats')
+    .where({key: 'taggedRoads'})
+    .update({ value: roadWithTagCount})
+    .catch(function (err) {
+          console.log(err);
+    });
+  
+  }
 
   writeJSON(allRoadsFileName, allRoads, function(err){
     if (err) throw err;
 
-/*
+  if(pushToMapBox) {
     // 5. upload to MapBox
     var progress = upload({
       file: allRoadsFileName,
@@ -127,11 +157,9 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
     progress.once('finished', function(){
       console.log('Uploaded to mapbox complete for file: ' + allRoadsFileName);
-      process.exit();
     });
 
-  });
-  */
+  }
 
   //remove unknown
   var allRoadsWithTags = {
@@ -157,8 +185,32 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
 
    });
 
-   var allRoadsWithTagFileName = __dirname + '/data/all_roads_withdata.geojson';
-   writeJSON(allRoadsWithTagFileName, allRoadsWithTags)
+   var allRoadsWithTagFileName = __dirname + '/data/all_roads_withstartdate.geojson';
+   writeJSON(allRoadsWithTagFileName, allRoadsWithTags, function(err){
+     if(err) console.log(err);
+     
+     var options = {
+        folder: 'loggingroads',
+        types: {
+            line: 'roads',
+            polyline: 'roads'
+        }
+     } 
+      
+     var shapefile = shpwrite.zip(allRoads, options);
+     var shapeFileName = __dirname + '/output/roads.shp.zip';
+     
+     fs.writeFile(shapeFileName, shapefile, function(err){
+        if(err) console.log(err);
+        console.log('successfully wrote file: ' + shapeFileName);
+    
+         dataUpdatedCallback();
+      });
+     
+    
+   });
+   
+   
 
 });
 
@@ -178,3 +230,47 @@ function writeJSON(outFile, json, callback){
     if(callback) callback();
   });
 }
+
+} //end run()
+
+if(runAsCronJob){
+  var CronJob = require('cron').CronJob;
+var job = new CronJob({
+  cronTime: cronTime,
+  onTick: function() {
+    try{
+      console.log('Started: ' + new Date().toLocaleString());
+      run(function(){
+        console.log('Finished: ' + new Date().toLocaleString());
+         var sys = require('sys')
+          var exec = require('child_process').exec;
+          var child;
+          child = exec("pm2 restart tessera", function (error, stdout, stderr) {
+            console.log('stdout: ' + stdout);
+            console.log('stderr: ' + stderr);
+            if (error !== null) {
+              console.log('exec error: ' + error);
+            }
+          });
+        });
+    } catch(error){
+      console.log(error.toString());
+    }
+    
+    //restart vector tile service to load new data
+   
+    
+  },
+  start: false,
+  timeZone: 'America/New_York'
+});
+job.start();
+} else {
+  //just run once
+   console.log('Started: ' + new Date().toLocaleString());
+  run(function(){
+     console.log('Finished: ' + new Date().toLocaleString());
+  });
+}
+
+

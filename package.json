@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "dependencies": {
     "async": "^0.9.0",
+    "cron": "^1.0.9",
     "knex": "^0.8.6",
     "mapbox-upload": "~3.1.0",
     "pg": "^4.4.2",
     "query-overpass": "~1.0.0",
+    "shp-write": "^0.2.4",
     "turf": "^2.0.2"
   }
 }
