@@ -2,6 +2,8 @@ var fs = require('fs');
 var async = require('async');
 var upload = require('mapbox-upload');
 var shpwrite = require('shp-write');
+var sys = require('sys')
+var exec = require('child_process').exec;
 var mergeGeoJSON = require('./custom_modules/merge-geojson');
 var queryOverpass = require('./custom_modules/bbox-query-overpass');
 //var queryOverpass = require('./custom_modules/read-files.js');  // for test purposes
@@ -56,6 +58,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
   if(err) throw err;
 
   var roadLengths = {};
+  var totalRoadLength = 0;
 
   var roadCount = 0;
   var roadWithTagCount = 0;
@@ -73,35 +76,38 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     var geojson = geojsonObj[key];
     roadLengths[key] = calcLength(geojson);
 
+    totalRoadLength += roadLengths[key];
     roadCount += geojson.features.length;
 
     //1. b) convert OSM tags to geoJSON properties
     geojson.features.forEach(function(feature){
               var tags = feature.properties.tags;
-              Object.keys(tags).map(function (key) {
-                   var val = tags[key];
-                   if(typeof val === 'object'){
-                     val = JSON.stringify(val);
-                    }
-                   feature.properties[key] = val;
-                 });
-                 if(feature.properties.start_date
-                 && feature.properties.start_date != ''
-                 && feature.properties.start_date != 'unknown'){
-                   roadWithTagCount++;
-                 }else{
-                   //assign a value so it is easier to style in the map
-                   feature.properties.start_date = 'unknown';
-                 }
-                 //remove bad tags
-                 if(feature.properties.start_date
-                 && feature.properties.start_date.startsWith('before')
-                 && feature.properties.start_date != 'before 2000'){
-                   feature.properties.start_date = 'unknown';
-                 }
-
-               //delete feature.properties.tags;
+              if(typeof tags === 'object'){
+                Object.keys(tags).map(function (key) {
+                    var val = tags[key];
+                    if(typeof val === 'object' ){
+                      val = JSON.stringify(val);
+                      }
+                    feature.properties[key] = val;
+                  });
+                  if(feature.properties.start_date
+                  && feature.properties.start_date != ''
+                  && feature.properties.start_date != 'unknown'){
+                    roadWithTagCount++;
+                  }else{
+                    //assign a value so it is easier to style in the map
+                    feature.properties.start_date = 'unknown';
+                  }
+                  //remove bad tags
+                  if(feature.properties.start_date
+                  && feature.properties.start_date.startsWith('before')
+                  && feature.properties.start_date != 'before 2000'){
+                    feature.properties.start_date = 'unknown';
+                  }
+              }
+               //delete feature.properties.tags; 
             });
+  
 
     // 2. write to file
     writeJSON(__dirname + '/data/' + key + '_logging_roads.geojson', geojson);
@@ -133,6 +139,13 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     knex('logging.stats')
     .where({key: 'taggedRoads'})
     .update({ value: roadWithTagCount})
+    .catch(function (err) {
+          console.log(err);
+    });
+    
+    knex('logging.stats')
+    .where({key: 'totalRoadLength'})
+    .update({ value: totalRoadLength})
     .catch(function (err) {
           console.log(err);
     });
@@ -196,15 +209,38 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
             polyline: 'roads'
         }
      } 
-      
+     console.log("Creating Shapefile");
      var shapefile = shpwrite.zip(allRoads, options);
-     var shapeFileName = __dirname + '/output/roads.shp.zip';
+     var shapeFileName = __dirname + '/data/roads.shp.zip';
      
      fs.writeFile(shapeFileName, shapefile, function(err){
         if(err) console.log(err);
         console.log('successfully wrote file: ' + shapeFileName);
+        
+        //rezip the shapefile with the OS since the node package is not compressing
+        var cmd = 'unzip -d ' + __dirname + ' ' +  __dirname + '/data/roads.shp.zip';
+        console.log(cmd);
+        exec(cmd, function (error, stdout, stderr) {
+            console.log('stdout: ' + stdout);
+            console.log('stderr: ' + stderr);
+            var cmd2 = 'zip -r -m ' + __dirname + '/output/roads.shp.zip '+ __dirname +'/loggingroads';
+            console.log(cmd2);
+            exec(cmd2, function (error, stdout, stderr) {
+            console.log('stdout: ' + stdout);
+            console.log('stderr: ' + stderr);
+            dataUpdatedCallback();
+            if (error !== null) {
+              console.log('exec error: ' + error);
+            }
+          });
+            if (error !== null) {
+              console.log('exec error: ' + error);
+            }
+          });
+        
+       
     
-         dataUpdatedCallback();
+         
       });
      
     
@@ -242,10 +278,8 @@ var job = new CronJob({
       console.log('Started: ' + new Date().toLocaleString());
       run(function(){
         console.log('Finished: ' + new Date().toLocaleString());
-         var sys = require('sys')
-          var exec = require('child_process').exec;
-          var child;
-          child = exec("pm2 restart tessera", function (error, stdout, stderr) {
+         
+          exec("pm2 restart tessera", function (error, stdout, stderr) {
             console.log('stdout: ' + stdout);
             console.log('stderr: ' + stderr);
             if (error !== null) {
