@@ -145,7 +145,7 @@ queryOverpass(inFiles, overpassQL, function(err, geojsonObj){
     
     knex('logging.stats')
     .where({key: 'totalRoadLength'})
-    .update({ value: totalRoadLength})
+    .update({ value: round(totalRoadLength)})
     .catch(function (err) {
           console.log(err);
     });
